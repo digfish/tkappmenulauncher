@@ -16,6 +16,7 @@ import PIL.Image
 import PySimpleGUI as sg
 import utils
 from dataclasses import dataclass
+import envlibloader
 
 class Launcher:
 
@@ -209,19 +210,6 @@ class Launcher:
 
                     prop_win = self._edit_item_window('Edit item',self.tree.TreeData.tree_dict[curr_exefilepath])
 
-                    # prop_win = sg.Window(f"Edit item",
-
-                    #                      layout=[[sg.Image(resized_bytes.getvalue(), size=(32,32),k='icon')],
-                    #                              [sg.Text('Title'),sg.Input(curr_title,k='title_input')],
-                    #                              [sg.Text('Path'),sg.InputText(curr_exefilepath,k='path_input',enable_events=True),
-                    #                                 sg.FileBrowse(enable_events=True, target='path_input',
-                    #                                               k='exefilepath_browser',file_types=(("Executables", "*.exe"),)
-                    #                               )],
-                    #                              [sg.OK(),sg.Cancel()]]
-                    #                      ,resizable=False,
-                    #                      modal=True,
-
-                    #                      finalize=True)
                     while True:
                         (event,values) = prop_win.read()
                         print(event,values)
@@ -257,12 +245,6 @@ class Launcher:
                     selected_key = values['-TREE-'][0]
                     
                 winbrowse = self._edit_item_window("Add new executable",sg.TreeData.Node('',key='',icon=utils.get_exe_icon(''),text='',values=[Launcher.TreeAppItem('')]))
-                # winbrowse = sg.Window('Add new executable',
-                #                 layout= [[sg.Text('Title'),sg.Input(k='title_input')],
-                #                          [ sg.Text('Exename'),sg.Input(k='browse_exe_input'),  sg.FileBrowse(file_types=(("Executables", "*.exe"),))],
-                #                          [sg.OK(), sg.Cancel() ]],
-                #                       modal=True,
-                #     )
                 while True:
                     event,values = winbrowse.read()
 
