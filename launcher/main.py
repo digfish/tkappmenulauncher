@@ -28,12 +28,15 @@ class Launcher:
     @dataclass
     class TreeAppItem:
 
-        def __init__(self,exe_path,title=None):
+        def __init__(self,exe_path=None,title=None):
             self.exe_path = exe_path
-            self.title = title
+            self.title = title if title is not None else os.path.basename(exe_path)
 
         def serialize(self):
             return self.__dict__
+        
+        def __str__(self) -> str:
+            return self.__dict__.__str__()
         
     class TreeAppItemEncoder(json.JSONEncoder):
         def default(self,treeappitem):
@@ -88,10 +91,11 @@ class Launcher:
 
     def _save_tree(self,treedata):
         dict_tree = self._extract_dict_from_treedata(treedata)
-        json.dump(dict_tree,open('tree.'+ socket.gethostname() +'.json','w'),indent=4,cls=Launcher.TreeAppItemEncoder)
+        json.dump(dict_tree,open(self._get_json_tree_file(),'w'),indent=4,cls=Launcher.TreeAppItemEncoder)
+        sg.popup_ok(f'Tree saved to {self._get_json_tree_file()}!')
 
     def _reconstruct_tree(self,treedata):
-        self._rebuild_tree_from_file(treedata, 'tree.' + socket.gethostname() + '.json')
+        self._rebuild_tree_from_file(treedata, self._get_json_tree_file())
 
     def _rebuild_tree_from_file(self, treedata, jsontreefile):
         read_tree = json.load(open(jsontreefile,'r'))
@@ -132,14 +136,14 @@ class Launcher:
         self.window.bind('<Double-Button-1>','double_click')
         self.window.bind('<Button-3>', 'right_click')
 
-    def _edit_item_window(window_title,node):
+    def _edit_item_window(self,window_title:str,node):
         return sg.Window(window_title,
 
-                        layout=[[sg.Image(node.icon.getvalue(), size=(32,32),k='icon')],
-                                [sg.Text('Title'),sg.Input(node.curr_title,k='title_input')],
-                                [sg.Text('Path'),sg.InputText(node.curr_exefilepath,k='exefilepath_input',enable_events=True),
-                                sg.FileBrowse(enable_events=True, target='exefilepath_input',
-                                                k='exefilepath_browser',file_types=(("Executables", "*.exe"),)
+                        layout=[[sg.Image(node.icon, size=(32,32),k='icon')],
+                                [sg.Text('Title'),sg.Input(node.text,k='title_input')],
+                                [sg.Text('Path'),sg.InputText(node.values[0].exe_path if len(node.values) > 0 else '',k='path_input',enable_events=True),
+                                sg.FileBrowse(enable_events=True, target='path_input',
+                                                k='path_browser',file_types=(("Executables", "*.exe"),)
                                 )],
                                 [sg.OK(),sg.Cancel()]
                         ],resizable=False,
@@ -157,6 +161,9 @@ class Launcher:
         resized.save(resized_bytes,format='PNG')
         resized.close()
         return resized_bytes
+    
+    def _get_json_tree_file(self):
+        return 'tree.'+ socket.gethostname() +'.json'
 
     def _about_window(self):
         sg.Window('About',[[sg.Text('''
@@ -200,31 +207,33 @@ class Launcher:
                     icondata = self.tree.TreeData.tree_dict[curr_exefilepath].icon
                     resized_bytes = self.replace_icon(icondata)
 
-                    prop_win = sg.Window(f"Edit item",
+                    prop_win = self._edit_item_window('Edit item',self.tree.TreeData.tree_dict[curr_exefilepath])
 
-                                         layout=[[sg.Image(resized_bytes.getvalue(), size=(32,32),k='icon')],
-                                                 [sg.Text('Title'),sg.Input(curr_title,k='title_input')],
-                                                 [sg.Text('Path'),sg.InputText(curr_exefilepath,k='exefilepath_input',enable_events=True),
-                                                    sg.FileBrowse(enable_events=True, target='exefilepath_input',
-                                                                  k='exefilepath_browser',file_types=(("Executables", "*.exe"),)
-                                                  )],
-                                                 [sg.OK(),sg.Cancel()]]
-                                         ,resizable=False,
-                                         modal=True,
+                    # prop_win = sg.Window(f"Edit item",
 
-                                         finalize=True)
+                    #                      layout=[[sg.Image(resized_bytes.getvalue(), size=(32,32),k='icon')],
+                    #                              [sg.Text('Title'),sg.Input(curr_title,k='title_input')],
+                    #                              [sg.Text('Path'),sg.InputText(curr_exefilepath,k='path_input',enable_events=True),
+                    #                                 sg.FileBrowse(enable_events=True, target='path_input',
+                    #                                               k='exefilepath_browser',file_types=(("Executables", "*.exe"),)
+                    #                               )],
+                    #                              [sg.OK(),sg.Cancel()]]
+                    #                      ,resizable=False,
+                    #                      modal=True,
+
+                    #                      finalize=True)
                     while True:
                         (event,values) = prop_win.read()
                         print(event,values)
                         #sg.Popup(event,values)
-                        if event == 'exefilepath_input':
-                            exefilepath = values['exefilepath_input']
+                        if event == 'path_input':
+                            exefilepath = values['path_input']
                             icondata = utils.get_exe_icon(exefilepath)
                             resized_bytes = self.replace_icon(icondata)
                             prop_win['title_input'].update(value=os.path.splitext(os.path.basename(exefilepath))[0])
                             prop_win['icon'].update(data=resized_bytes.getvalue())
                         elif event == 'OK':
-                            exefilepath = values['exefilepath_input']
+                            exefilepath = values['path_input']
                             title = values['title_input']
                             cur_idx = current_node_keys.index(curr_exefilepath)
                             current_node_keys[cur_idx] = exefilepath
@@ -246,41 +255,52 @@ class Launcher:
                 selected_key = None
                 if len(values['-TREE-']) > 0:
                     selected_key = values['-TREE-'][0]
+                    
+                winbrowse = self._edit_item_window("Add new executable",sg.TreeData.Node('',key='',icon=utils.get_exe_icon(''),text='',values=[Launcher.TreeAppItem('')]))
+                # winbrowse = sg.Window('Add new executable',
+                #                 layout= [[sg.Text('Title'),sg.Input(k='title_input')],
+                #                          [ sg.Text('Exename'),sg.Input(k='browse_exe_input'),  sg.FileBrowse(file_types=(("Executables", "*.exe"),))],
+                #                          [sg.OK(), sg.Cancel() ]],
+                #                       modal=True,
+                #     )
+                while True:
+                    event,values = winbrowse.read()
 
-                winbrowse = sg.Window('Add new executable',
-                                layout= [[sg.Text('Title'),sg.Input(k='title_input')],
-                                         [ sg.Text('Exename'),sg.Input(k='browse_exe_input'),  sg.FileBrowse(file_types=(("Executables", "*.exe"),))],
-                                         [sg.OK(), sg.Cancel() ]],
-                                      modal=True,
-                    )
+                    print(event,values)
+                    exe = values['path_input']
+                    title = values['title_input']
+                    if len(title.strip()) == 0:
+                        title = os.path.splitext(os.path.basename(exe))[0]
+                    if event == 'path_input':
+                        exefilepath = values['path_input']
+                        icondata = utils.get_exe_icon(exefilepath)
+                        resized_bytes = self.replace_icon(icondata)
+                        winbrowse['title_input'].update(value=title)
+                        winbrowse['icon'].update(data=resized_bytes.getvalue())
 
-                event,values = winbrowse.read()
-
+                    elif event == 'OK':
+                        if selected_key is not None: #if a node is selected, insert after it
+                            current_node_keys = list(self.tree.TreeData.tree_dict.keys())
+                            cur_idx = current_node_keys.index(selected_key)
+                            current_node_keys.insert(cur_idx+1,exe)
+                            new_tree_data = sg.TreeData()
+                            for exename_key in current_node_keys:
+                                if len(exename_key) > 0:
+                                    if exename_key == exe:
+                                        current_title = title
+                                    else:
+                                        current_node = self.treedata.tree_dict[exename_key]
+                                        current_title = current_node.values[0].title
+                                    self._add_exe_to_tree(
+                                        new_tree_data, exename_key, current_title)
+                            self.tree.update(values=new_tree_data)
+                        else: # no node selected, append to the end
+                            self._add_exe_to_tree(self.tree.TreeData,exe,title)
+                            self.tree.update(values=self.tree.TreeData)
+                        break
+                    elif event == 'Cancel':
+                        break
                 winbrowse.close()
-                print(event,values)
-                exe = values['Browse']
-                title = values['title_input']
-                if len(title.strip()) == 0:
-                    title = os.path.splitext(os.path.basename(exe))[0]
-                if event == 'OK':
-                    if selected_key is not None: #if a node is selected, insert after it
-                        current_node_keys = list(self.tree.TreeData.tree_dict.keys())
-                        cur_idx = current_node_keys.index(selected_key)
-                        current_node_keys.insert(cur_idx+1,exe)
-                        new_tree_data = sg.TreeData()
-                        for exename_key in current_node_keys:
-                            if len(exename_key) > 0:
-                                if exename_key == exe:
-                                    current_title = title
-                                else:
-                                    current_node = self.treedata.tree_dict[exename_key]
-                                    current_title = current_node.values[0].title
-                                self._add_exe_to_tree(
-                                    new_tree_data, exename_key, current_title)
-                        self.tree.update(values=new_tree_data)
-                    else: # no node selected, append to the end
-                        self._add_exe_to_tree(self.tree.TreeData,exe,title)
-                        self.tree.update(values=self.tree.TreeData)
             elif event == 'Delete':
                 if len(values['-TREE-']) > 0:
                     exefilepath = values['-TREE-'][0]
@@ -293,7 +313,6 @@ class Launcher:
                         self.tree.update(values=new_treedata)
             elif event == 'Save':
                 print("Saving tree!")
-                sg.PopupOK("The tree was saved to disk!")
                 self._save_tree(self.tree.TreeData)
             elif event == 'About':
                 self._about_window()
