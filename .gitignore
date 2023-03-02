@@ -1,0 +1,8 @@
+*.json
+.idea/*
+*.pyc
+__pycache__/*
+*.ico
+*.log
+Everything.exe.png
+exeicon.bmp
