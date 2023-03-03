@@ -17,6 +17,7 @@ import PySimpleGUI as sg
 import utils
 from dataclasses import dataclass
 import envlibloader
+import dotenv
 
 class Launcher:
 
@@ -29,10 +30,19 @@ class Launcher:
     @dataclass
     class TreeAppItem:
 
-        def __init__(self,exe_path=None,title=None,env_ini=None):
-            self.exe_path = exe_path
-            self.title = title if title is not None else os.path.basename(exe_path)
-            self.env_ini = env_ini
+        def __init__(self,*args):
+            if len(args) == 1:
+                if type(args[0]) == dict:
+                    return self._from_dict(args[0])
+                else: 
+                    self.exe_path = args[0]
+            elif len(args) == 3:
+                self.exe_path = args[0]
+                self.title = args[1] if args[1] is not None else os.path.basename(self.exe_path)
+                self.env_ini = args[2]
+
+        def _from_dict(self,dict_item):
+            return self.__init__(dict_item['exe_path'],dict_item['title'],dict_item['env_ini'])
 
         def serialize(self):
             return self.__dict__
@@ -45,6 +55,15 @@ class Launcher:
             if isinstance(treeappitem,Launcher.TreeAppItem):
                 return treeappitem.serialize()
 
+    class TreeAppItemDecoder(json.JSONDecoder):
+  
+        def __init__(self):
+          json.JSONDecoder.__init__(self, object_hook=json.JSONDecoder.from_dict)
+  
+        def decode(self,s):
+                item = json.loads(s)
+                return Launcher.TreeAppItem(item['exe_path'],item['title'],
+                                            item['env_ini'])
 
     def _search_treedata(self,treedata,q):
         selected = []
@@ -53,12 +72,17 @@ class Launcher:
                 selected.append(item.text)
         return selected
 
-    def _add_exe_to_tree(self,treedata,exe_path,title=None,env_ini=None):
-        if len(exe_path) > 0 or exe_path.endswith('.exe'):
-            treedata.insert('', key=exe_path, text=title, values=[
-                            Launcher.TreeAppItem(exe_path, title, env_ini)], icon=utils.get_exe_icon(exe_path))
+    def _add_exe_to_tree(self,treedata,*args):
+        treeappitem = None
+        if type(args[0]) == Launcher.TreeAppItem:
+            treeappitem = args[0]
+        else: 
+            treeappitem = Launcher.TreeAppItem(*args)
+        if len(treeappitem.exe_path) > 0 or treeappitem.exe_path.endswith('.exe'):
+            treedata.insert('', key=treeappitem.exe_path, text=treeappitem.title, values=[
+                            treeappitem], icon=utils.get_exe_icon(treeappitem.exe_path))
         else:
-            sg.popup_error(f"A filepath for a non-exe : '{exe_path}' was passed!")
+            sg.popup_error(f"A filepath for a non-exe : '{treeappitem.exe_path}' was passed!")
 
     def _copy_tree(self,treedata):
         new_treedata = sg.TreeData()
@@ -102,7 +126,8 @@ class Launcher:
     def _rebuild_tree_from_file(self, treedata, jsontreefile):
         read_tree = json.load(open(jsontreefile,'r'))
         for key, value in read_tree.items():
-            self._add_exe_to_tree(treedata,value['exe_path'],value['title'],value['env_ini'])
+                new_entry = Launcher.TreeAppItem(value)
+                self._add_exe_to_tree(treedata,new_entry)
         return treedata
 
     def _init_window(self):
@@ -147,8 +172,8 @@ class Launcher:
                                 sg.FileBrowse(enable_events=True, target='path_input',
                                                 k='path_browser',file_types=(("Executables", "*.exe"),)
                                 )],
-                                [sg.Text('Env ini'),sg.Input(node.values[0].env_ini if len(node.values)> 0 else '',k='env_ini_input',enable_events=True),
-                                 sg.FileBrowse(enable_events=True, target='env_ini_input',k='env_ini_browser',file_types=(("Ini files", "*.ini"),))],
+                                [sg.Text('Env ini'),sg.Input(node.values[0].env_ini if hasattr(node.values[0],'env_ini') else '',k='env_ini_input',enable_events=True),
+                                 sg.FileBrowse(enable_events=True, target='env_ini_input',k='env_ini_browser',file_types=(("Ini files", "*.ini"),("Env files","*.env")))],
                                 [sg.OK(),sg.Cancel()]
                         ],resizable=False,
                         modal=True,
@@ -183,7 +208,7 @@ class Launcher:
         else:
             #opener ="open" if sys.platform == "darwin" else "xdg-open"
             #subprocess.call(['open', exefilepath])
-            subprocess.Popen([exefilepath])
+            subprocess.Popen([exefilepath],env=os.environ)
 
     def window_loop(self):
         while True:
@@ -197,8 +222,16 @@ class Launcher:
                 if len(values['-TREE-']) > 0:
                     node_value = values['-TREE-'][0]
             elif event == 'double_click':
-                exefilepath = values['-TREE-'][0]
-                self._launch_exe(exefilepath)
+                chosen_node_key = values['-TREE-'][0]
+                chosen_node = self.treedata.tree_dict[chosen_node_key].values[0]
+                exefilename = chosen_node.exe_path
+                env_ini : str = chosen_node.env_ini 
+                if env_ini is not None:
+                    if env_ini.endswith('.ini'):
+                        envlibloader.set_env_vars(env_ini)
+                    elif env_ini.endswith('.env'):
+                        dotenv.load_dotenv(env_ini,override=True)
+                self._launch_exe(exefilename)
             elif event == 'right_click':
                 if len(values['-TREE-']) > 0:
                     exefilepath = values['-TREE-'][0]
@@ -235,19 +268,22 @@ class Launcher:
                             env_ini_path = values['env_ini_input']
                         elif event == 'OK':
                             exefilepath = values['path_input']
-                            title = values['title_input']
+                            new_title = values['title_input']
+                            new_env_ini = values['env_ini_input']
                             cur_idx = current_node_keys.index(curr_exefilepath)
                             current_node_keys[cur_idx] = exefilepath
                             new_tree_data = sg.TreeData()
                             for filexe_key in current_node_keys:
                                 if len(filexe_key) > 0:
                                     if filexe_key == exefilepath:
-                                        existing_title = title
+                                        title = new_title
+                                        env_ini = new_env_ini
                                     else:
                                         existing_node = self.treedata.tree_dict[filexe_key]
-                                        existing_title = existing_node.values[0].title
-                                        env_ini_path = existing_node.values[0].env_ini
-                                    self._add_exe_to_tree (new_tree_data,filexe_key,existing_title,env_ini_path)
+                                        title = existing_node.values[0].title
+                                        env_ini = existing_node.values[0].env_ini
+                                    self._add_exe_to_tree(
+                                        new_tree_data, filexe_key, title, env_ini)
                             self.tree.update(values=new_tree_data)
                             break
                         elif event == 'Cancel':
@@ -264,17 +300,17 @@ class Launcher:
 
                     print(event,values)
                     exe = values['path_input']
-                    title = values['title_input']
-                    env_ini_path = values['env_ini_input']
-                    if len(title.strip()) == 0:
-                        title = os.path.splitext(os.path.basename(exe))[0]
+                    new_title = values['title_input']
+                    new_env_ini_path = values['env_ini_input']
+                    if len(new_title.strip()) == 0:
+                        new_title = os.path.splitext(os.path.basename(exe))[0]
                     elif event == 'env_ini_input':
                         env_ini_path = values['env_ini_input']
                     if event == 'path_input':
                         exefilepath = values['path_input']
                         icondata = utils.get_exe_icon(exefilepath)
                         resized_bytes = self.replace_icon(icondata)
-                        winbrowse['title_input'].update(value=title)
+                        winbrowse['title_input'].update(value=new_title)
                         winbrowse['icon'].update(data=resized_bytes.getvalue())
 
                     elif event == 'OK':
@@ -285,18 +321,18 @@ class Launcher:
                             new_tree_data = sg.TreeData()
                             for exename_key in current_node_keys:
                                 if len(exename_key) > 0:
-                                    if exename_key == exe:
-                                        current_title = title
-                                        env_ini_path = values['env_ini_input']
-                                    else:
+                                    title = new_title
+                                    env_ini_path = new_env_ini_path
+                                    if exename_key != exe:
                                         current_node = self.treedata.tree_dict[exename_key]
-                                        current_title = current_node.values[0].title
+                                        title = current_node.values[0].title
                                         env_ini_path = current_node.values[0].env_ini
                                     self._add_exe_to_tree(
-                                        new_tree_data, exename_key, current_title,env_ini_path)
+                                        new_tree_data, exename_key,title,env_ini_path)
                             self.tree.update(values=new_tree_data)
                         else: # no node selected, append to the end
-                            self._add_exe_to_tree(self.tree.TreeData,exe,title,env_ini_path)
+                            self._add_exe_to_tree(
+                                self.tree.TreeData, exe, new_title, new_env_ini_path)
                             self.tree.update(values=self.tree.TreeData)
                         break
                     elif event == 'Cancel':

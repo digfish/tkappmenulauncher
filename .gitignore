@@ -1,4 +1,4 @@
-*.json
+/*.json
 .idea/*
 *.pyc
 __pycache__/*
