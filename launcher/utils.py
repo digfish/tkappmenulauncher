@@ -10,6 +10,17 @@ if sys.platform == 'win32':
     import win32con
     import win32ui
 
+def is_running_in_portable_drive():
+    disks = psutil.disk_partitions()
+    removable_disks = [disk.device[0:2] for disk in disks if disk.opts.find('removable') >= 0]
+    curdrive = os.getcwd()[0:2]
+    if curdrive in removable_disks:
+        return curdrive
+    return False
+
+def get_volume_name(drive_letter):
+    return win32api.GetVolumeInformation(drive_letter+"\\")[0]
+
 def kill_by_name(process_name):
     for proc in psutil.process_iter(['pid', 'name']):
         if proc.info['name'] == process_name:
@@ -80,9 +91,7 @@ def get_exe_icon(exe_path):
     #os.remove(tempDirectory + "\Icontemp.bmp")
     return icobytes.getvalue()
 
-
-if __name__ == '__main__':
-
+def test_get_exe_icon():
     exe_path = "D:\APPS\Symenu\ProgramFiles\SPSSuite\SyMenuSuite\Everything_(x64)_sps\Everything.exe"
     icon_path = os.path.basename(exe_path) + ".png"
     icobytes = get_exe_icon(exe_path)
@@ -94,3 +103,9 @@ if __name__ == '__main__':
     os.startfile(icodir)
     
     #os.startfile(icon_path)
+
+
+
+if __name__ == '__main__':
+    print(is_running_in_portable_drive())
+

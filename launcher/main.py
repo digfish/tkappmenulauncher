@@ -11,21 +11,25 @@ import os
 import pprint
 import socket
 import sys
+from dataclasses import dataclass
 from io import BytesIO, StringIO
+
+import dotenv
+import envlibloader
 import PIL.Image
+import pystray
 import PySimpleGUI as sg
 import utils
-from dataclasses import dataclass
-import envlibloader
-import dotenv
+
 
 class Launcher:
 
     def __init__(self):
         self.treedata = sg.TreeData()
-        self.title = sys.argv[0]
+        self.title = os.path.basename(os.path.dirname(sys.argv[0]))
         self.window = None
         self.tree = None
+        self.systray = None
 
     @dataclass
     class TreeAppItem:
@@ -142,7 +146,7 @@ class Launcher:
                         enable_events=True,
                         expand_x=True,
                         right_click_menu=['Menu',['&Add','&Delete','&Edit']],
-                        expand_y=True,
+                        expand_y=True
         )
 
 
@@ -155,11 +159,38 @@ class Launcher:
             [sg.Menu([['&File', ['&Open', '&Save', '&Edit', 'E&xit', ]],['&Help',['&About']]], key='-MENU-')],
             [self.tree]
         ]
-        self.window = sg.Window(self.title,layout,resizable=False, finalize=True)
+        self.window = sg.Window(self.title,layout,resizable=False, finalize=True, icon='app-menu-launcher.ico')
+
+        self._init_systray()
 
         self.window.bind('<Button-2>', 'middle_click')
         self.window.bind('<Double-Button-1>','double_click')
         self.window.bind('<Button-3>', 'right_click')
+
+    def _init_systray(self):
+        #self.systray = sg.SystemTray(
+        #menu=(['MENU', ['E&xit']]), filename='app-menu-launcher.png', tooltip=self.title)
+        self.systray = pystray.Icon(self.title,icon=PIL.Image.open('app-menu-launcher.ico'),
+                                    menu=pystray.Menu(lambda: (pystray.MenuItem('Exit',
+                                            (lambda:self.window.write_event_value('Exit',None))),)))
+        return self.systray
+
+    def _systray_event_loop(self):
+        self.systray.run()
+        """         while True:
+            option_clicked = self.systray.Read()
+            print('SYSTRAY event:',option_clicked)
+            self.window.write_event_value('systray',option_clicked)
+            if option_clicked == sg.EVENT_SYSTEM_TRAY_ICON_DOUBLE_CLICKED:
+                print("systray double clicked!")
+                #self.window.keep_on_top_set()
+            elif option_clicked == 'Exit':
+                #self.window.write_event_value('Exit',None)
+                break"""
+    def exit(self):
+        self.systray.stop()
+        self.window.close()
+        
 
     def _edit_item_window(self,window_title:str,node):
         return sg.Window(window_title,
@@ -190,6 +221,10 @@ class Launcher:
         return resized_bytes
     
     def _get_json_tree_file(self):
+        portable_drive = utils.is_running_in_portable_drive()
+        if portable_drive != False:
+            volume_name = utils.get_volume_name(portable_drive) 
+            return 'tree.' + volume_name + '.json'
         return 'tree.'+ socket.gethostname() +'.json'
 
     def _about_window(self):
@@ -209,10 +244,14 @@ class Launcher:
             subprocess.Popen([exefilepath],env=os.environ)
 
     def window_loop(self):
+        self.window.perform_long_operation(self._systray_event_loop,'exit')
+        #print('last_message',self.systray.last_message_event)
         while True:
             self.treedata = self.tree.TreeData
             event, values = self.window.read()
-            print(event, values)
+            #window, event, values = sg.read_all_windows()
+            #print(window, event, values)
+            print(event,values)
             if event in (sg.WIN_CLOSED,'Exit'):
                 self._save_tree(self.tree.TreeData)
                 break
@@ -362,7 +401,7 @@ class Launcher:
             elif event == 'About':
                 self._about_window()
             else: continue
-        self.window.close()
+        self.exit()
 
 
 
