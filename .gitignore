@@ -6,3 +6,6 @@ __pycache__/*
 *.log
 Everything.exe.png
 exeicon.bmp
+AppMenuLauncher/
+launcher/AppMenuLauncher/
+*.exe

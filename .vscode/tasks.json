@@ -4,9 +4,56 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "run program as administrator",
+            "label": "conda export env",
             "type": "shell",
-            "command": "runas /user:Administrator ${file}",
+            "command": "conda env export --from-history > appmenulauncher-venv.py"
+        },
+        {
+            "label": "pip freeze",
+            "type": "shell",
+            "command": "pip freeze > requirements.txt"
+        },
+        {
+            "label": "create venv",
+            "type": "shell",
+            "command": "conda env create -n  appmenulauncher --file appmenulauncher-venv.py"
+        },
+        {
+            "label": "pip install deps",
+            "type": "shell",
+            "command": "pip install -r requirements.txt"
+        },
+        {
+            "label": "build exe",
+            "type": "shell",
+            "command": "conda run -v -n appmenulauncher-venv bin\\build.bat",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "install",
+            "type": "shell",
+            "command": "conda run -v -n appmenulauncher-venv  bin\\install.bat ${input:install-folder}",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "clean",
+            "type": "shell",
+            "command": "rm -vr launcher/appmenulauncher && rm -vr luancher/__pycache__ && rm -v *.dll"
         }
-    ]
+    ],
+    "inputs": [
+        {
+        "id":"install-folder",
+        "type":"promptString",
+        "description":"Select the folder to install the app",
+        "default": "d:\\apps"
+    }
+]
 }

@@ -55,15 +55,6 @@ class Launcher:
             if isinstance(treeappitem,Launcher.TreeAppItem):
                 return treeappitem.serialize()
 
-    class TreeAppItemDecoder(json.JSONDecoder):
-  
-        def __init__(self):
-          json.JSONDecoder.__init__(self, object_hook=json.JSONDecoder.from_dict)
-  
-        def decode(self,s):
-                item = json.loads(s)
-                return Launcher.TreeAppItem(item['exe_path'],item['title'],
-                                            item['env_ini'])
 
     def _search_treedata(self,treedata,q):
         selected = []
@@ -118,7 +109,7 @@ class Launcher:
     def _save_tree(self,treedata):
         dict_tree = self._extract_dict_from_treedata(treedata)
         json.dump(dict_tree,open(self._get_json_tree_file(),'w'),indent=4,cls=Launcher.TreeAppItemEncoder)
-        sg.popup_ok(f'Tree saved to {self._get_json_tree_file()}!')
+        #sg.popup_ok(f'Tree saved to {self._get_json_tree_file()}!')
 
     def _reconstruct_tree(self,treedata):
         self._rebuild_tree_from_file(treedata, self._get_json_tree_file())
@@ -131,6 +122,13 @@ class Launcher:
         return treedata
 
     def _init_window(self):
+
+        if not os.path.exists(self._get_json_tree_file()):
+            print("Creating new tree file "  + os.path.abspath(self._get_json_tree_file()))
+            f = open(self._get_json_tree_file(),'w')
+            f.write('{}')
+            f.close()
+
         self._reconstruct_tree(self.treedata)
 
         self.tree = sg.Tree(data=self.treedata,
@@ -221,17 +219,27 @@ class Launcher:
             elif event == '-TREE-':
                 if len(values['-TREE-']) > 0:
                     node_value = values['-TREE-'][0]
-            elif event == 'double_click':
+            elif event == 'double_click': # execute item
                 chosen_node_key = values['-TREE-'][0]
                 chosen_node = self.treedata.tree_dict[chosen_node_key].values[0]
-                exefilename = chosen_node.exe_path
-                env_ini : str = chosen_node.env_ini 
+                exe_path = chosen_node.exe_path
+                env_ini : str = chosen_node.env_ini
+                exefilename = os.path.basename(exe_path) 
+                if utils.is_process_running(exefilename):
+                    print(f"Process {exefilename} is already running!")
+                    answer = sg.popup_yes_no(f'{exefilename} is already running, kill it?',title='Kill process?')
+                    print(f"Answer: {answer}")
+                    if answer == 'Yes':
+                        print("Terminating process...")
+                        utils.kill_by_name(exefilename)
+                        print("DONE!")
                 if env_ini is not None:
                     if env_ini.endswith('.ini'):
                         envlibloader.set_env_vars(env_ini)
                     elif env_ini.endswith('.env'):
                         dotenv.load_dotenv(env_ini,override=True)
-                self._launch_exe(exefilename)
+                print(f"Launcing {exe_path}")
+                self._launch_exe(exe_path)
             elif event == 'right_click':
                 if len(values['-TREE-']) > 0:
                     exefilepath = values['-TREE-'][0]

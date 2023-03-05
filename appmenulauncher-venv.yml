@@ -1,0 +1,8 @@
+name: appmenulauncher-venv
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+  - pillow
+  - pywin32
+prefix: E:\Miniconda\envs\appmenulauncher-venv

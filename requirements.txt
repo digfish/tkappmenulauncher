@@ -1,0 +1,12 @@
+altgraph==0.17.3
+pefile==2023.2.7
+Pillow==9.4.0
+psgcompiler==1.5.1
+psutil==5.9.4
+pyinstaller==5.8.0
+pyinstaller-hooks-contrib==2023.0
+PySimpleGUI==4.60.4
+python-dotenv==1.0.0
+pywin32==305
+pywin32-ctypes==0.2.0
+wincertstore==0.2

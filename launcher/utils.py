@@ -1,6 +1,7 @@
 import  io
 import PIL.Image
 import os,sys
+import psutil
 
 
 if sys.platform == 'win32':
@@ -8,6 +9,17 @@ if sys.platform == 'win32':
     import win32gui
     import win32con
     import win32ui
+
+def kill_by_name(process_name):
+    for proc in psutil.process_iter(['pid', 'name']):
+        if proc.info['name'] == process_name:
+            proc.terminate()
+
+def is_process_running(process_name):
+    for proc in psutil.process_iter(['pid', 'name']):
+        if proc.info['name'] == process_name:
+            return True
+    return False
 
 def get_win32_default_icon():
     """
