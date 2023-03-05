@@ -26,7 +26,7 @@
         {
             "label": "build exe",
             "type": "shell",
-            "command": "conda run -v -n appmenulauncher-venv bin\\build.bat",
+            "command": "bin\\build.bat ${input:virtualenv}",
             "problemMatcher": [],
             "group": {
                 "kind": "build",
@@ -36,16 +36,19 @@
         {
             "label": "install",
             "type": "shell",
-            "command": "conda run -v -n appmenulauncher-venv  bin\\install.bat ${input:install-folder}",
+            "command": "bin\\install.bat ${input:install-folder}",
             "group": {
                 "kind": "build",
                 "isDefault": false
-            }
+            },
+            "dependsOn": [
+                "build exe"
+            ]
         },
         {
             "label": "clean",
             "type": "shell",
-            "command": "rm -vr launcher/appmenulauncher && rm -vr luancher/__pycache__ && rm -v *.dll"
+            "command": "rm -vr appmenulauncher && rm -vr launcher/__pycache__"
         }
     ],
     "inputs": [
@@ -54,6 +57,11 @@
         "type":"promptString",
         "description":"Select the folder to install the app",
         "default": "d:\\apps"
+    },{
+        "id":"virtualenv",  
+        "type":"promptString",
+        "description": "Select the virtualenv folder",
+        "default": "e:\\venv\\appmenulauncher-pyorg"
     }
 ]
 }

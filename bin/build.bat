@@ -1,7 +1,7 @@
-@echo off
-rem conda activate appmenulauncher-venv
-pyinstaller --onefile --windowed --name AppMenuLauncher ^
+rem @echo off
+set VIRTUALENV=%1
+echo %VIRTUALENV%
+%VIRTUALENV%\Scripts\activate && pyinstaller --onefile --windowed --name AppMenuLauncher ^
     --paths ../envlibloader -i ../app-menu-launcher.ico ^
-    --workpath launcher --distpath . --specpath launcher launcher/main.py
-rem call bin\install.bat %1
+    --workpath . --distpath dist --specpath launcher launcher/main.py
 

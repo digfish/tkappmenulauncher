@@ -1,2 +1,2 @@
 mkdir  %1
-copy AppMenuLauncher.exe %1
+copy dist\AppMenuLauncher.exe %1
