@@ -13,6 +13,7 @@ import socket
 import sys
 from dataclasses import dataclass
 from io import BytesIO, StringIO
+import threading
 
 import dotenv
 import envlibloader
@@ -20,7 +21,6 @@ import PIL.Image
 import pystray
 import PySimpleGUI as sg
 import utils
-import infi.systray
 
 
 class Launcher:
@@ -74,9 +74,11 @@ class Launcher:
             treeappitem = args[0]
         else:
             treeappitem = Launcher.TreeAppItem(*args)
+        iconpngbytes = utils.get_exe_icon(treeappitem.exe_path)
+        treeappitem.tmpicon = utils.tmpicon(utils.get_icon_as_icobytes(treeappitem.exe_path))
         if len(treeappitem.exe_path) > 0 or treeappitem.exe_path.endswith('.exe'):
             treedata.insert('', key=treeappitem.exe_path, text=treeappitem.title, values=[
-                            treeappitem], icon=utils.get_exe_icon(treeappitem.exe_path))
+                            treeappitem], icon=iconpngbytes)
         else:
             sg.popup_error(
                 f"A filepath for a non-exe : '{treeappitem.exe_path}' was passed!")
@@ -172,9 +174,13 @@ class Launcher:
         self.window.bind('<Double-Button-1>', 'double_click')
         self.window.bind('<Button-3>', 'right_click')
 
-    def _send_to_tray(self,systray,menu_item):
-         # Benefitting from the hack, we can access the exe_path attribute
-         self.window.write_event_value('double_click', menu_item.exe_path)
+    def _send_to_tray(self, systray, menu_item):
+        # Benefitting from the hack, we can access the exe_path attribute
+        self.window.write_event_value('double_click', menu_item.exe_path)
+
+    def _systray_exec(self,systray,node):
+        self.window.write_event_value('double_click', node.exe_path)
+
 
     def _init_systray(self):
 
@@ -184,9 +190,10 @@ class Launcher:
             if len(item.values) > 0:
                 node = item.values[0]
                 newmenuitem = pystray.MenuItem(
-                    text=node.title, action=lambda systray,this_menu_item: self._send_to_tray(systray,this_menu_item)
-                    )
-                #this is a hack: assigning a non-defined attribute in the class MenuItem 
+                    text=node.title, icon=utils.get_exe_img(node.exe_path),action=lambda systray, this_menu_item: self._send_to_tray(
+                        systray, this_menu_item)
+                )
+                # this is a hack: assigning a non-defined attribute in the class MenuItem
                 newmenuitem.exe_path = node.exe_path
                 menuitems.append(newmenuitem)
 
@@ -203,10 +210,14 @@ class Launcher:
                                                       )
                                     )
         self.systray.menuitems = menuitems
-        #self.systray.metadata = "Ola!"
+       
         return self.systray
 
     def _systray_event_loop(self):
+        self.systray.run() #using pystrary
+        #self.systray.start()
+ 
+    def _systray_event_loop_using_pystray(self):
         self.systray.run()
         """         while True:
             option_clicked = self.systray.Read()
@@ -219,10 +230,15 @@ class Launcher:
                 #self.window.write_event_value('Exit',None)
                 break"""
 
-    def exit(self):
+    def exit(self,systray=None):
         self.systray.stop()
+        print("Exiting", systray)
+        # if systray is not None:
+        #     systray.shutdown()
+        # else:
+        #     self.systray.shutdown()
         self.window.close()
-
+ 
     def _edit_item_window(self, window_title: str, node):
         return sg.Window(window_title,
 
@@ -275,7 +291,8 @@ class Launcher:
             subprocess.Popen([exefilepath], env=os.environ)
 
     def window_loop(self):
-        self.window.perform_long_operation(self._systray_event_loop, 'exit')
+        self.window.perform_long_operation(self._systray_event_loop,None)
+        #self.systray.start()
         # print('last_message',self.systray.last_message_event)
         while True:
             self.treedata = self.tree.TreeData
@@ -290,7 +307,8 @@ class Launcher:
                 if len(values['-TREE-']) > 0:
                     node_value = values['-TREE-'][0]
             elif event == 'double_click':  # execute item
-                chosen_node_key = values['-TREE-'][0] if len(values['-TREE-']) > 0 else values['double_click']
+                chosen_node_key = values['-TREE-'][0] if len(
+                    values['-TREE-']) > 0 else values['double_click']
                 chosen_node = self.treedata.tree_dict[chosen_node_key].values[0]
                 exe_path = chosen_node.exe_path
                 env_ini: str = chosen_node.env_ini

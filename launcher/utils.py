@@ -2,6 +2,7 @@ import  io
 import PIL.Image
 import os,sys
 import psutil
+import tempfile
 
 
 if sys.platform == 'win32':
@@ -58,7 +59,54 @@ def get_default_icon():
     PIL.Image.open('exe-icon-32.png').save(pngbytes, format='PNG')
     return pngbytes.getvalue()
 
+def get_exe_img(exe_path):
+    '''
+    Returns the icon of the executable as a PIL Image Object
+    :param exe_path: the path of the .exe
+    :return: a PIL Image Object
+    '''
+    if sys.platform != 'win32':
+        return get_default_icon()
+    try:
+        large, small = win32gui.ExtractIconEx(exe_path, 0)
+    except:
+        return get_win32_default_icon()
+    win32gui.DestroyIcon(large[0])
+#    win32gui.ExtractIconEx(exe_path, 0, 1)
+    ico_x = win32api.GetSystemMetrics(win32con.SM_CXICON)
+    #creating a destination memory DC
+    hdc = win32ui.CreateDCFromHandle( win32gui.GetDC(0) )
+    hbmp = win32ui.CreateBitmap()
+    hbmp.CreateCompatibleBitmap(hdc, ico_x, ico_x)
+    hdc = hdc.CreateCompatibleDC()
+    hdc.SelectObject(hbmp)
+    #draw a icon in it
+    hdc.DrawIcon( (0,0), small[0] )
+    win32gui.DestroyIcon(small[0])
+    #tempDirectory = os.environ['TEMP']
+    #convert picture
+    hbmp.GetBitmapBits(True)
+    #hbmp.SaveBitmapFile( hdc, tempDirectory + "\Icontemp.bmp")
+    im = PIL.Image.frombuffer("RGBA", (ico_x,ico_x), hbmp.GetBitmapBits(True), "raw", "BGRA", 0, 1)
+    im = im.resize((16,16),PIL.Image.LANCZOS)
+    return im
+
 def get_exe_icon(exe_path):
+    '''
+    Returns the icon of the executable as a PNG byte string
+    :param exe_path: the path of the .exe
+    :return: PNG byte string
+    '''
+    im = get_exe_img(exe_path)
+    #im = PIL.Image.open(tempDirectory + "\Icontemp.bmp")
+    icobytes = io.BytesIO()
+    im.save(icobytes,format='PNG')
+    im.close()
+    #os.startfile(tempDirectory + "\Icontemp.bmp")
+    #os.remove(tempDirectory + "\Icontemp.bmp")
+    return icobytes.getvalue()
+
+def get_icon_as_icobytes(exe_path):
     if sys.platform != 'win32':
         return get_default_icon()
     try:
@@ -81,15 +129,15 @@ def get_exe_icon(exe_path):
     #convert picture
     hbmp.GetBitmapBits(True)
     #hbmp.SaveBitmapFile( hdc, tempDirectory + "\Icontemp.bmp")
-    im = PIL.Image.frombuffer("RGBA", (ico_x,ico_x), hbmp.GetBitmapBits(True), "raw", "BGRA", 0, 1)
-    #im = PIL.Image.open(tempDirectory + "\Icontemp.bmp")
+    im = PIL.Image.frombuffer("RGBA", (ico_x, ico_x),
+                              hbmp.GetBitmapBits(True), "raw", "BGRA", 0, 1)
+    # im = PIL.Image.open(tempDirectory + "\Icontemp.bmp")
     icobytes = io.BytesIO()
-    im = im.resize((16,16),PIL.Image.LANCZOS)
-    im.save(icobytes,format='PNG')
+    im.save(icobytes, format='ICO')
     im.close()
-    #os.startfile(tempDirectory + "\Icontemp.bmp")
-    #os.remove(tempDirectory + "\Icontemp.bmp")
     return icobytes.getvalue()
+    # os.startfile(icon_path)
+
 
 def test_get_exe_icon():
     exe_path = "D:\APPS\Symenu\ProgramFiles\SPSSuite\SyMenuSuite\Everything_(x64)_sps\Everything.exe"
@@ -101,11 +149,15 @@ def test_get_exe_icon():
     icodir = os.getcwd()
     print(icodir)
     os.startfile(icodir)
-    
-    #os.startfile(icon_path)
 
-
+def tmpicon(iconbytes):
+    _tmpicon = tempfile.NamedTemporaryFile(delete = False)
+    _tmpicon.write(iconbytes)
+    _tmpicon.close()
+    return os.path.abspath(_tmpicon.name)
 
 if __name__ == '__main__':
-    print(is_running_in_portable_drive())
+    icobytes = get_icon_as_icobytes("D:\APPS\Symenu\ProgramFiles\SPSSuite\SyMenuSuite\Everything_(x64)_sps\Everything.exe")
+    tmpname = tmpicon(icobytes)
+    os.startfile(tmpname)
 

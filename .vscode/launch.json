@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "PYTHONPATH": "../envlibloader"
+                "PYTHONPATH": "../pystray/lib;../envlibloader"
             }
         },
         {

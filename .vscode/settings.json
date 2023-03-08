@@ -1,7 +1,8 @@
 {
     "python.terminal.activateEnvInCurrentTerminal": false,
     "terminal.integrated.env.windows": {
-        "PYTHONPATH": "../envlibloader"
+        "PYTHONPATH": "../pystray/lib;../envlibloader"
     },
-    "git.openRepositoryInParentFolders": "always"
+    "git.openRepositoryInParentFolders": "always",
+    "python.analysis.typeCheckingMode": "off"
 }

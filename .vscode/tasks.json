@@ -42,7 +42,6 @@
                 "isDefault": false
             },
             "dependsOn": [
-                "build exe"
             ]
         },
         {

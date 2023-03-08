@@ -6,7 +6,7 @@ block_cipher = None
 
 a = Analysis(
     ['main.py'],
-    pathex=['../envlibloader'],
+    pathex=['../envlibloader', '../pystray/lib'],
     binaries=[],
     datas=[],
     hiddenimports=[],

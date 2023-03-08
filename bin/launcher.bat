@@ -1,3 +1,3 @@
 @ECHO OFF
-SET PYTHONPATH=../envlibloader 
-pythonw launcher/main.py
+SET PYTHONPATH=../pystray/lib;../envlibloader 
+python launcher/main.py
