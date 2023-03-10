@@ -181,9 +181,7 @@ class Launcher:
     def _systray_exec(self,systray,node):
         self.window.write_event_value('double_click', node.exe_path)
 
-
-    def _init_systray(self):
-
+    def _regenerate_tray_menu(self):
         treeitems = dict(self.treedata.tree_dict)
         menuitems = []
         for item in treeitems.values():
@@ -205,38 +203,29 @@ class Launcher:
                           )
                          )
 
+        return pystray.Menu(lambda: menuitems)                         
+
+    def _init_systray(self):
+
+
         self.systray = pystray.Icon(self.title, icon=PIL.Image.open('app-menu-launcher.ico'),
-                                    menu=pystray.Menu(lambda: menuitems
-                                                      )
+                                    menu= self._regenerate_tray_menu()
                                     )
-        self.systray.menuitems = menuitems
+        self.systray.menuitems = self.systray.menu.items
        
         return self.systray
 
+    def _reset_systray(self):
+        self.systray.menu = self._regenerate_tray_menu()
+        self.systray.update_menu()
+
     def _systray_event_loop(self):
         self.systray.run() #using pystrary
-        #self.systray.start()
- 
-    def _systray_event_loop_using_pystray(self):
-        self.systray.run()
-        """         while True:
-            option_clicked = self.systray.Read()
-            print('SYSTRAY event:',option_clicked)
-            self.window.write_event_value('systray',option_clicked)
-            if option_clicked == sg.EVENT_SYSTEM_TRAY_ICON_DOUBLE_CLICKED:
-                print("systray double clicked!")
-                #self.window.keep_on_top_set()
-            elif option_clicked == 'Exit':
-                #self.window.write_event_value('Exit',None)
-                break"""
+
 
     def exit(self,systray=None):
         self.systray.stop()
-        print("Exiting", systray)
-        # if systray is not None:
-        #     systray.shutdown()
-        # else:
-        #     self.systray.shutdown()
+        print("Exiting", self.systray)
         self.window.close()
  
     def _edit_item_window(self, window_title: str, node):
@@ -340,6 +329,8 @@ class Launcher:
                     newtreedata = self._rebuild_tree_from_file(
                         sg.TreeData(), jsontreefile)
                     self.tree.update(values=newtreedata)
+                    self.treedata = self.tree.TreeData
+                    self._reset_systray()
 
             elif event == 'Edit':
                 if len(values['-TREE-']) > 0:
@@ -388,6 +379,9 @@ class Launcher:
                                     self._add_exe_to_tree(
                                         new_tree_data, filexe_key, title, env_ini)
                             self.tree.update(values=new_tree_data)
+                            self.treedata = self.tree.TreeData
+
+                            self._reset_systray()
                             break
                         elif event == 'Cancel':
                             break
@@ -435,10 +429,14 @@ class Launcher:
                                     self._add_exe_to_tree(
                                         new_tree_data, exename_key, title, env_ini_path)
                             self.tree.update(values=new_tree_data)
+                            self.treedata = self.tree.TreeData
+                            self._reset_systray()
                         else:  # no node selected, append to the end
                             self._add_exe_to_tree(
                                 self.tree.TreeData, exe, new_title, new_env_ini_path)
                             self.tree.update(values=self.tree.TreeData)
+                            self.treedata = self.tree.TreeData
+                            self._reset_systray()
                         break
                     elif event == 'Cancel':
                         break
@@ -455,6 +453,9 @@ class Launcher:
                         new_treedata = self._make_treedata_from_dict(
                             treedata_dict)
                         self.tree.update(values=new_treedata)
+                        self.treedata = self.tree.TreeData
+                        self._reset_systray()
+
             elif event == 'Save':
                 print("Saving tree!")
                 self._save_tree(self.tree.TreeData)
@@ -462,6 +463,7 @@ class Launcher:
                 self._about_window()
             else:
                 continue
+
         self.exit()
 
 

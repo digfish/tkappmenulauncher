@@ -97,6 +97,7 @@ def get_exe_icon(exe_path):
     :param exe_path: the path of the .exe
     :return: PNG byte string
     '''
+    if len(exe_path) == 0: return ''
     im = get_exe_img(exe_path)
     #im = PIL.Image.open(tempDirectory + "\Icontemp.bmp")
     icobytes = io.BytesIO()
