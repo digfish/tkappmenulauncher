@@ -10,3 +10,4 @@ AppMenuLauncher/
 launcher/AppMenuLauncher/
 *.exe
 dist/
+build/

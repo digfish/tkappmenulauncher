@@ -41,13 +41,38 @@
                 "kind": "build",
                 "isDefault": false
             },
-            "dependsOn": [
-            ]
+            "dependsOn": []
         },
         {
             "label": "clean",
             "type": "shell",
-            "command": "rm -vr appmenulauncher && rm -vr launcher/__pycache__"
+            "command": "rm -r build"
+        },
+        {
+            "type": "script",
+            "scriptType": "batch",
+            "path": "bin/",
+            "fileName": "build.bat",
+            "scriptFile": true,
+            "script": "bat",
+            "target": "bat",
+            "uri": {
+                "$mid": 1,
+                "fsPath": "s:\\appmenulauncher\\bin\\build.bat",
+                "_sep": 1,
+                "external": "file:///s%3A/appmenulauncher/bin/build.bat",
+                "path": "/s:/appmenulauncher/bin/build.bat",
+                "scheme": "file"
+            },
+            "takesArgs": true,
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "label": "batch: build.bat",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
     ],
     "inputs": [

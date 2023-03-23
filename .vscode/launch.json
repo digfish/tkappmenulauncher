@@ -16,6 +16,17 @@
             }
         },
         {
+            "name": "main",
+            "type": "python",
+            "request": "launch",
+            "program": "launcher/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "../pystray/lib;../envlibloader"
+            }
+        },
+        {
             "name": "Python: Current File as admin",
             "type": "f5anything",
             "request": "launch",

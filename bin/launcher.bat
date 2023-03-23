@@ -1,3 +1,5 @@
 @ECHO OFF
-SET PYTHONPATH=../pystray/lib;../envlibloader 
-python launcher/main.py
+
+SET PWD=%0/../..
+SET PYTHONPATH=%PWD%/../pystray/lib;%PWD%/../envlibloader 
+python %PWD%/launcher/main.py

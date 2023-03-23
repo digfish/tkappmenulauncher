@@ -22,6 +22,12 @@ import pystray
 import PySimpleGUI as sg
 import utils
 
+#APP_ICON =  os.path.dirname(sys.argv[0]) + os.sep + 'app-menu-launcher.ico'
+
+#if sys.argv[0].endswith('.exe'):
+#    APP_ICON = 'app-menu-launcher.ico'
+
+APP_ICON =  os.path.dirname(__file__) + os.sep + 'app-menu-launcher.ico'
 
 class Launcher:
 
@@ -161,12 +167,12 @@ class Launcher:
         print("treedata", self.tree.TreeData)
 
         layout = [
-            [sg.Menu([['&File', ['&Open', '&Save', '&Edit', 'E&xit', ]], [
+            [sg.Menu([['&File', ['&Open', '&Save', '&Edit', 'E&xit', ]],['E&dit',['Relative paths to &absolute','Absolute paths to &relative']], [
                      '&Help', ['&About']]], key='-MENU-')],
             [self.tree]
         ]
         self.window = sg.Window(
-            self.title, layout, resizable=False, finalize=True, icon='app-menu-launcher.ico')
+            self.title, layout, resizable=False, finalize=True, icon=APP_ICON)
 
         self._init_systray()
 
@@ -206,11 +212,14 @@ class Launcher:
         return pystray.Menu(lambda: menuitems)                         
 
     def _init_systray(self):
-
-
-        self.systray = pystray.Icon(self.title, icon=PIL.Image.open('app-menu-launcher.ico'),
-                                    menu= self._regenerate_tray_menu()
+        try:
+            self.systray = pystray.Icon(self.title, icon=PIL.Image.open( APP_ICON),
+                                        menu= self._regenerate_tray_menu()
                                     )
+        except:
+            print("File Not found: " +os.getcwd() + APP_ICON)
+            raise 
+
         self.systray.menuitems = self.systray.menu.items
        
         return self.systray
@@ -278,6 +287,39 @@ class Launcher:
             # opener ="open" if sys.platform == "darwin" else "xdg-open"
             # subprocess.call(['open', exefilepath])
             subprocess.Popen([exefilepath], env=os.environ)
+
+    def _nodes_abspath_to_relpath(self):
+        curr_tree = self.tree.TreeData
+        for node in curr_tree.tree_dict.values():
+            if len(node.values) > 0:
+                node.values[0].exe_path = Launcher.abspath_to_relpath(
+                    node.values[0].exe_path) 
+                
+    def _nodes_relpath_to_abspath(self):
+        print("Conveting relative paths to absolute...")
+        curr_tree = self.tree.TreeData
+        for node in curr_tree.tree_dict.values():
+            if len(node.values) > 0:
+                node.values[0].exe_path = Launcher.relpath_to_abspath(
+                    node.values[0].exe_path)
+
+    def abspath_to_relpath(abspath):        
+        try:
+            rel = os.path.relpath(abspath)
+            print(f"{abspath} => {rel}")
+            return rel
+        except Exception as ex:
+            print(f'{abspath}: This path is in a different drive')
+            return abspath
+        
+    def relpath_to_abspath(relpath):
+        path = os.path.join(os.getcwd(), relpath)
+        print(f"{relpath} => {path}")
+        if os.path.exists(path):
+            return path
+        else:
+            print(f'{relpath}: This path doesn\'t exist!')
+            return relpath
 
     def window_loop(self):
         self.window.perform_long_operation(self._systray_event_loop,None)
@@ -385,7 +427,7 @@ class Launcher:
                             break
                         elif event == 'Cancel':
                             break
-                    prop_win.close()
+                        prop_win.close()
             elif event == 'Add':
                 selected_key = None
                 if len(values['-TREE-']) > 0:
@@ -456,6 +498,12 @@ class Launcher:
                         self.treedata = self.tree.TreeData
                         self._reset_systray()
 
+            elif event == 'Absolute paths to relative':
+                self._nodes_abspath_to_relpath()
+
+            elif event == 'Relative paths to absolute':
+                self._nodes_relpath_to_abspath()
+
             elif event == 'Save':
                 print("Saving tree!")
                 self._save_tree(self.tree.TreeData)
@@ -468,6 +516,7 @@ class Launcher:
 
 
 def main():
+    print(os.getcwd())
     launcher = Launcher()
     launcher._init_window()
     launcher.window_loop()
